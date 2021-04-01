@@ -15,6 +15,4 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    {ok, ServerCfg} = application:get_env(?APP, server),
-    PoolSpec = ecpool:pool_spec(?APP, ?APP, ?ECPOOL_WORKER, ServerCfg),
-    {ok, {{one_for_one, 10, 100}, [PoolSpec]}}.
+    {ok, {{one_for_one, 10, 100}, []}}.
