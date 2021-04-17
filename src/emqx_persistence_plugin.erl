@@ -37,14 +37,14 @@ on_message_publish(Message = #message{ topic =  <<"$P2P/", PeerClientId/binary>>
     if erlang:byte_size(PeerClientId) > 0 ->
             case string:str(erlang:binary_to_list(PeerClientId), "/") of
                 0 ->
-                    case  ets:lookup(emqx_channel, PeerClientId) of
-                        [{_,ChannelPid}] ->
-                                P2PMessage = emqx_message:make(From, QOS, <<"$P2P/", PeerClientId/binary >> , Payload),
-                                ChannelPid ! {deliver, <<"$P2P/", PeerClientId/binary>>, P2PMessage},
-                                {ok, Message};
-                        []-> 
-                                {stop, #message{headers = #{allow_publish => false}}}
-                    end;
+                  case rpc:multicall([node() | nodes()], ets, lookup, [emqx_channel, PeerClientId]) of
+                    {[[{_, ChannelPid}] | _], _} ->
+                      P2PMessage = emqx_message:make(From, QOS, <<"$P2P/", PeerClientId/binary >> , Payload),
+                      ChannelPid ! {deliver, <<"$P2P/", PeerClientId/binary>>, P2PMessage},
+                      {ok, Message};
+                    _ ->
+                      {stop, #message{headers = #{allow_publish => false}}}
+                  end;
                 _ ->
                     {stop, #message{headers = #{allow_publish => false}} }
             end
