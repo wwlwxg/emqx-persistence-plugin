@@ -30,25 +30,44 @@ on_message_publish(Message = #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
 % point to point
 on_message_publish(Message = #message{ topic =  <<"$P2P/", PeerClientId/binary>>,
-                                        qos = QOS ,
-                                        payload = Payload ,
-                                        from = From},
-                                    _Env) ->
-    if erlang:byte_size(PeerClientId) > 0 ->
-            case string:str(erlang:binary_to_list(PeerClientId), "/") of
-                0 ->
-                  case rpc:multicall([node() | nodes()], ets, lookup, [emqx_channel, PeerClientId]) of
-                    {[[{_, ChannelPid}] | _], _} ->
-                      P2PMessage = emqx_message:make(From, QOS, <<"$P2P/", PeerClientId/binary >> , Payload),
-                      ChannelPid ! {deliver, <<"$P2P/", PeerClientId/binary>>, P2PMessage},
-                      {ok, Message};
-                    _ ->
-                      {stop, #message{headers = #{allow_publish => false}}}
-                  end;
-                _ ->
-                    {stop, #message{headers = #{allow_publish => false}} }
-            end
-    end;
+                                          qos = QOS ,
+                                          payload = Payload ,
+                                          from = From},
+                                            _Env) ->
+      case erlang:byte_size(PeerClientId) > 0 of 
+        true ->
+          case rpc:multicall([node() | nodes()], ets,lookup, [emqx_channel, PeerClientId]) of
+            {[[{_, ChannelPid}] | _] ,_} ->
+              P2PMessage = emqx_message:make(From, QOS, <<"$P2P/", PeerClientId/binary >> , Payload),
+              ChannelPid ! {deliver, <<"$P2P/", PeerClientId/binary>>, P2PMessage},
+              {ok, Message};
+            _ ->
+              {stop, #message{headers = #{allow_publish => false}}}
+          end;
+        _ ->
+          {stop, #message{headers = #{allow_publish => false}} }
+      end;
+
+%%on_message_publish(Message = #message{ topic =  <<"$P2P/", PeerClientId/binary>>,
+%%                                        qos = QOS ,
+%%                                        payload = Payload ,
+%%                                        from = From},
+%%                                    _Env) ->
+%%    if erlang:byte_size(PeerClientId) > 0 ->
+%%            case string:str(erlang:binary_to_list(PeerClientId), "/") of
+%%                0 ->
+%%                  case rpc:multicall([node() | nodes()], ets, lookup, [emqx_channel, PeerClientId]) of
+%%                    {[[{_, ChannelPid}] | _], _} ->
+%%                      P2PMessage = emqx_message:make(From, QOS, <<"$P2P/", PeerClientId/binary >> , Payload),
+%%                      ChannelPid ! {deliver, <<"$P2P/", PeerClientId/binary>>, P2PMessage},
+%%                      {ok, Message};
+%%                    _ ->
+%%                      {stop, #message{headers = #{allow_publish => false}}}
+%%                  end;
+%%                _ ->
+%%                    {stop, #message{headers = #{allow_publish => false}} }
+%%            end
+%%    end;
 
 on_message_publish(Message , _Env) ->
     {ok, Message}.
